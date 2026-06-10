@@ -44,23 +44,21 @@ def check_and_install_deps():
             subprocess.call(cmd, shell=True)
         print(f"\n  \033[92m✓\033[0m All dependencies installed\n")
 
-    # Install textual if missing
     try:
         import textual
     except ImportError:
         print("  \033[96m→\033[0m Installing textual...")
-        subprocess.call("pip install textual requests rich --break-system-packages", shell=True)
+        subprocess.call("pip install textual requests rich --break-system-packages -q", shell=True)
 
-    # Install requests if missing
     try:
         import requests
     except ImportError:
-        subprocess.call("pip install requests --break-system-packages", shell=True)
+        subprocess.call("pip install requests --break-system-packages -q", shell=True)
 
 check_and_install_deps()
 
 # ─────────────────────────────────────────
-# IMPORTS (after deps installed)
+# IMPORTS
 # ─────────────────────────────────────────
 
 from textual.app import App, ComposeResult
@@ -101,18 +99,22 @@ TIPS = [
     "aon wraps pacman, yay, flatpak and more in one tool.",
     "Press Q anywhere to quit aon.",
     "Arrow keys navigate, Enter selects, Space toggles.",
+    "The crow sees all packages.",
+    "Chaos is not a bug. Chaos is a feature.",
+    "Use 'aon search' to find packages across all sources at once.",
+    "GitHub source searches for repos with Linux install files.",
 ]
 
 COMMANDS_HELP = {
-    "aon install <package>": "Install a package from your default source.",
-    "aon -U install <package>": "Open TUI to choose which source to install from.",
-    "aon remove": "Open TUI to browse and select packages to remove.",
-    "aon remove <package>": "Remove a specific package directly.",
-    "aon update": "Update all source databases.",
-    "aon upgrade": "Open TUI to select which packages to upgrade.",
-    "aon search <package>": "Search for a package across all sources.",
-    "aon settings": "Open the settings TUI.",
-    "aon --help": "Open this help browser.",
+    "aon install <package>": "Install a package from your default source silently.",
+    "aon -U install <package>": "Open TUI source picker to choose where to install from.",
+    "aon remove": "Open TUI to browse all installed packages and select one to remove.",
+    "aon remove <package>": "Remove a specific package directly without TUI.",
+    "aon update": "Update all source databases (pacman, yay, flatpak).",
+    "aon upgrade": "Open TUI to select which packages to upgrade with spacebar.",
+    "aon search <package>": "Search for a package across all sources simultaneously.",
+    "aon settings": "Open the settings TUI to configure defaults.",
+    "aon --help": "Open this interactive help browser.",
 }
 
 # ─────────────────────────────────────────
@@ -325,17 +327,18 @@ Input:focus {
 }
 """
 
-LOGO = """\
-        /\\
-       /  \\
-      / /\\ \\
-     / /  \\ \\
-    / / /\\ \\ \\
-   /_/ /__\\ \\_\\
-      /\\  /\\
-     /  \\/  \\
-     \\  /\\  /
-      \\/  \\/"""
+LOGO = (
+    "        /\\\n"
+    "       /  \\\n"
+    "      / /\\ \\\n"
+    "     / /  \\ \\\n"
+    "    / / /\\ \\ \\\n"
+    "   /_/ /__\\ \\_\\\n"
+    "      /\\  /\\\n"
+    "     /  \\/  \\\n"
+    "     \\  /\\  /\n"
+    "      \\/  \\/"
+)
 
 # ─────────────────────────────────────────
 # GREETER SCREEN
@@ -354,7 +357,7 @@ class GreeterScreen(Screen):
         yield Container(
             Static(LOGO, classes="logo"),
             Static("A R C H A O N  O S", classes="title"),
-            Static("aon — Package Manager v0.1.0 Chaotic Crow", classes="version"),
+            Static("aon — Package Manager v0.1.0 Chaotic Crow 🐦‍⬛", classes="version"),
             Static("─" * 40, classes="subtitle"),
             Static(f"💡 {tip}", classes="tip"),
             Static("─" * 40, classes="subtitle"),
@@ -377,15 +380,15 @@ class FirstLaunchScreen(Screen):
         yield Header(show_clock=True)
         yield Container(
             Static(LOGO, classes="logo"),
-            Static("Welcome to aon!", classes="title"),
+            Static("Welcome to aon! 🐦‍⬛", classes="title"),
             Static("Let's get you set up.", classes="subtitle"),
             Static("", classes="tip"),
             Static("Choose your default package source:", classes="subtitle"),
             Static("", classes="tip"),
-            Button("pacman  — Official Arch repos", id="src_pacman"),
-            Button("yay     — AUR (Arch User Repository)", id="src_yay"),
-            Button("flatpak — Flathub", id="src_flatpak"),
-            Button("archaon — Archaon OS repo", id="src_archaon"),
+            Button("📦  pacman  — Official Arch repos", id="src_pacman"),
+            Button("🔧  yay     — AUR", id="src_yay"),
+            Button("📱  flatpak — Flathub", id="src_flatpak"),
+            Button("🔮  archaon — Archaon OS repo", id="src_archaon"),
             Static("", classes="tip"),
             Static("You can change this later in aon settings", classes="dim"),
         )
@@ -415,12 +418,10 @@ class HelpScreen(Screen):
         Binding("escape", "dismiss", "Back"),
     ]
 
-    selected_command = None
-
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Container(
-            Static("aon — Help Browser", classes="title"),
+            Static("aon — Help Browser 🐦‍⬛", classes="title"),
             Static("Select a command to see its usage", classes="subtitle"),
             Static("", classes="tip"),
             Horizontal(
@@ -470,7 +471,7 @@ class SourcePickerScreen(Screen):
         yield Header(show_clock=True)
         yield Container(
             Static(f"Installing: [bold #00ccff]{self.package}[/bold #00ccff]", classes="title"),
-            Static("Choose a source:", classes="subtitle"),
+            Static("Choose a source 🐦‍⬛", classes="subtitle"),
             Static("", classes="tip"),
             Button("📦  pacman  — Official Arch repos", id="src_pacman"),
             Button("🔧  yay     — AUR", id="src_yay"),
@@ -478,7 +479,7 @@ class SourcePickerScreen(Screen):
             Button("🔮  archaon — Archaon repo", id="src_archaon"),
             Button("🐙  github  — Search GitHub", id="src_github"),
             Static("", classes="tip"),
-            Static("ESC — Back", classes="dim"),
+            Static("ESC — Back  |  Q — Quit", classes="dim"),
         )
         yield Footer()
 
@@ -511,9 +512,10 @@ class RemoveScreen(Screen):
 
     def compose(self) -> ComposeResult:
         packages = get_installed_packages()
+        self.packages = packages
         yield Header(show_clock=True)
         yield Container(
-            Static("aon remove — Installed Packages", classes="title"),
+            Static("aon remove 🐦‍⬛", classes="title"),
             Static("Select a package to remove", classes="subtitle"),
             Static("", classes="tip"),
             ListView(
@@ -530,8 +532,7 @@ class RemoveScreen(Screen):
         list_view = self.query_one("#pkg_list", ListView)
         if list_view.highlighted_child:
             idx = int(str(list_view.highlighted_child.id).replace("pkg_", ""))
-            packages = get_installed_packages()
-            package = packages[idx]
+            package = self.packages[idx]
             self.app.exit()
             remove_package(package)
 
@@ -552,18 +553,18 @@ class UpgradeScreen(Screen):
     def __init__(self):
         super().__init__()
         self.selected = set()
+        self.packages = []
 
     def compose(self) -> ComposeResult:
-        packages = get_upgradeable_packages()
-        self.packages = packages
+        self.packages = get_upgradeable_packages()
         yield Header(show_clock=True)
         yield Container(
-            Static("aon upgrade — Available Updates", classes="title"),
+            Static("aon upgrade 🐦‍⬛", classes="title"),
             Static("SPACE to select, ENTER to upgrade selected", classes="subtitle"),
             Static("", classes="tip"),
             ListView(
                 *[ListItem(Label(f"○  {p}"), id=f"upg_{i}")
-                  for i, p in enumerate(packages)] if packages
+                  for i, p in enumerate(self.packages)] if self.packages
                 else [ListItem(Label("✓  All packages are up to date!"))],
                 id="upg_list"
             ),
@@ -576,7 +577,10 @@ class UpgradeScreen(Screen):
         if event.key == "space":
             list_view = self.query_one("#upg_list", ListView)
             if list_view.highlighted_child:
-                idx = int(str(list_view.highlighted_child.id).replace("upg_", ""))
+                item_id = str(list_view.highlighted_child.id)
+                if not item_id.startswith("upg_"):
+                    return
+                idx = int(item_id.replace("upg_", ""))
                 if idx in self.selected:
                     self.selected.remove(idx)
                     list_view.highlighted_child.query_one(Label).update(f"○  {self.packages[idx]}")
@@ -607,12 +611,11 @@ class SearchScreen(Screen):
     def __init__(self, package: str):
         super().__init__()
         self.package = package
-        self.results = {}
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Container(
-            Static(f"Search results for: [bold #00ccff]{self.package}[/bold #00ccff]", classes="title"),
+            Static(f"aon search — {self.package} 🐦‍⬛", classes="title"),
             Static("Searching all sources...", id="search_status", classes="subtitle"),
             Static("", classes="tip"),
             ScrollableContainer(
@@ -642,7 +645,7 @@ class SearchScreen(Screen):
             output.append("")
 
         self.query_one("#results_area", Static).update("\n".join(output))
-        self.query_one("#search_status", Static).update("Done!")
+        self.query_one("#search_status", Static).update("🐦‍⬛ Done!")
 
     def action_dismiss(self):
         self.app.pop_screen()
@@ -661,14 +664,14 @@ class SettingsScreen(Screen):
         config = load_config()
         yield Header(show_clock=True)
         yield Container(
-            Static("aon settings", classes="title"),
+            Static("aon settings 🐦‍⬛", classes="title"),
             Static("", classes="tip"),
             Container(
                 Static("Default Source", classes="panel-title"),
-                Button("pacman", id="set_pacman"),
-                Button("yay", id="set_yay"),
-                Button("flatpak", id="set_flatpak"),
-                Button("archaon", id="set_archaon"),
+                Button("📦  pacman", id="set_pacman"),
+                Button("🔧  yay", id="set_yay"),
+                Button("📱  flatpak", id="set_flatpak"),
+                Button("🔮  archaon", id="set_archaon"),
                 Static(f"Current: {config['default_source']}", id="current_source", classes="subtitle"),
                 classes="panel",
             ),
@@ -742,7 +745,11 @@ class AonApp(App):
 def main():
     args = sys.argv[1:]
 
-    if not args or "--help" in args or "-h" in args:
+    if not args:
+        AonApp(GreeterScreen()).run()
+        return
+
+    if "--help" in args or "-h" in args:
         AonApp(HelpScreen()).run()
         return
 
@@ -762,7 +769,7 @@ def main():
         return
 
     if args[0] == "update":
-        print("\033[92m→\033[0m Updating package databases...")
+        print("\033[92m🐦‍⬛ aon\033[0m — Updating sources...")
         run("sudo pacman -Sy")
         run("yay -Sy 2>/dev/null")
         run("flatpak update 2>/dev/null")
