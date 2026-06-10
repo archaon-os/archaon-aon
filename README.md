@@ -1,103 +1,99 @@
 # aon 🐦‍⬛
 
-> The Archaon OS package manager.
+> The Archaon OS package manager. Chaos is not a bug. Chaos is a feature.
 
-`aon` is a simple package manager wrapper for Archaon OS built on top of `pacman` and `yay`. It provides a cleaner, simpler syntax for everyday package management.
+aon is a full TUI package manager for Archaon OS. It wraps pacman, yay, flatpak, and more into one beautiful interactive interface with full mouse and keyboard support.
 
 ---
 
-## Installation
+## Install 🐦‍⬛
 
-`aon` comes pre-installed on Archaon OS.
+    curl -fsSL https://raw.githubusercontent.com/archaon-os/archaon-aon/main/install.sh | bash
 
-To install manually:
+Or manually:
 
     git clone https://github.com/archaon-os/archaon-aon.git
     cd archaon-aon
-    sudo cp aon /usr/local/bin/aon
+    sudo cp aon.py /usr/local/bin/aon
     sudo chmod +x /usr/local/bin/aon
+    pip install textual requests rich --break-system-packages
 
 ---
 
-## Usage
+## Commands 🐦‍⬛
 
-    aon <command> [package]
-
----
-
-## Commands
-
-| Command | Short | Description |
-|---------|-------|-------------|
-| `aon install <package>` | `aon i` | Install a package |
-| `aon remove <package>` | `aon r` | Remove a package |
-| `aon update` | `aon u` | Update all packages |
-| `aon search <package>` | `aon s` | Search for a package |
-| `aon list` | `aon l` | List installed packages |
-| `aon info <package>` | | Show package info |
-| `aon clean` | | Clean package cache |
+| Command | Description |
+|---------|-------------|
+| `aon install <package>` | Install from your default source |
+| `aon -U install <package>` | Open TUI to choose source |
+| `aon remove` | Open TUI to browse and remove packages |
+| `aon remove <package>` | Remove a package directly |
+| `aon update` | Update all source databases |
+| `aon upgrade` | Open TUI to select packages to upgrade |
+| `aon search <package>` | Search across all sources |
+| `aon settings` | Open settings TUI |
+| `aon --help` | Open interactive help browser |
 
 ---
 
-## Examples
+## Sources 🐦‍⬛
 
-    # Install a package
-    aon install firefox
-
-    # Install multiple packages
-    aon install git neovim docker
-
-    # Remove a package
-    aon remove firefox
-
-    # Update everything
-    aon update
-
-    # Search for a package
-    aon search spotify
-
-    # Get info about a package
-    aon info hyprland
-
-    # Clean cache
-    aon clean
+| Source | Description |
+|--------|-------------|
+| pacman | Official Arch Linux repositories |
+| yay | AUR — Arch User Repository |
+| flatpak | Flathub |
+| archaon | Archaon OS official packages |
+| github | Search GitHub for Linux install packages |
 
 ---
 
-## Under the Hood
+## Features 🐦‍⬛
 
-`aon` uses:
-- `pacman` for official Arch repos
-- `yay` for AUR packages
-
-Both are searched automatically — no need to specify which one.
-
----
-
-## Roadmap
-
-- [ ] Archaon curated package repo
-- [ ] Packages that install with Archaon theming baked in
-- [ ] Custom `.aon` package format
-- [ ] Full dependency resolution
-- [ ] `aon install discord` auto-applies dark theme
+- Full screen TUI with mouse and keyboard support
+- Pure black and neon green and blue Archaon theme
+- Interactive source picker
+- Browse and select packages to remove
+- Spacebar multi-select for upgrades
+- GitHub repo search with stars and descriptions
+- First launch setup wizard
+- Daily tips on every launch
+- Settings page for defaults and preferences
+- Auto installs missing dependencies on first run
 
 ---
 
-## Related Repos
+## First Launch 🐦‍⬛
+
+On first run aon will automatically install any missing dependencies including yay, flatpak, git and python libraries. Then it opens a setup wizard to choose your default package source.
+
+---
+
+## Roadmap 🐦‍⬛
+
+- Archaon OS official package repository
+- Custom .aon package format
+- Automatic theming when installing apps
+- aon package builder for maintainers
+- Continuous integration with archaon-iso
+
+---
+
+## Part of Archaon OS 🐦‍⬛
 
 | Repo | Purpose |
 |------|---------|
-| [archaon-os](https://github.com/archaon-os/archaon-os) | Main repo |
-| [archaon-iso](https://github.com/archaon-os/archaon-iso) | ISO build |
-| [archaon-branding](https://github.com/archaon-os/archaon-branding) | Dotfiles |
+| archaon-os | Main repo |
+| archaon-iso | ISO build profile |
+| archaon-branding | Dotfiles and assets |
+| archaon-aon | This repo |
 
 ---
 
-## License
+## License 🐦‍⬛
 
 GPL v3 — see LICENSE file.
 
 ---
 
-**Archaon OS — 1.0.0 "Chaotic Crow" 🐦‍⬛**
+Archaon OS — 1.0.0 "Chaotic Crow" 🐦‍⬛
