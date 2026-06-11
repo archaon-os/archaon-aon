@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 aon - Archaon OS Package Manager
-Version: 0.1.0 "Chaotic Crow"
+Version: 0.1.3 "Chaotic Crow"
 """
 
 import os
@@ -9,6 +9,7 @@ import sys
 import json
 import random
 import subprocess
+import time
 from pathlib import Path
 
 # ─────────────────────────────────────────
@@ -47,13 +48,17 @@ def check_and_install_deps():
     try:
         import textual
     except ImportError:
-        print("  \033[96m→\033[0m Installing textual...")
-        subprocess.call("pip install textual requests rich --break-system-packages -q", shell=True)
+        subprocess.call("pip install textual requests rich pyfiglet --break-system-packages -q", shell=True)
 
     try:
         import requests
     except ImportError:
         subprocess.call("pip install requests --break-system-packages -q", shell=True)
+
+    try:
+        import pyfiglet
+    except ImportError:
+        subprocess.call("pip install pyfiglet --break-system-packages -q", shell=True)
 
 check_and_install_deps()
 
@@ -65,10 +70,11 @@ from textual.app import App, ComposeResult
 from textual.screen import Screen
 from textual.widgets import (
     Header, Footer, Label, Button, Static,
-    ListView, ListItem, Checkbox, Select, Input
+    ListView, ListItem, Input
 )
-from textual.containers import Container, Vertical, Horizontal, ScrollableContainer
+from textual.containers import Container, Horizontal, ScrollableContainer
 from textual.binding import Binding
+import pyfiglet
 
 # ─────────────────────────────────────────
 # CONFIG
@@ -76,14 +82,14 @@ from textual.binding import Binding
 
 CONFIG_DIR = Path.home() / ".config" / "aon"
 CONFIG_FILE = CONFIG_DIR / "config.json"
+VERSION = "0.1.3"
+CODENAME = "Chaotic Crow"
 
 DEFAULT_CONFIG = {
     "default_source": "pacman",
     "auto_update": False,
     "confirm_install": True,
     "first_launch": True,
-    "color_accent": "#00ff88",
-    "color_secondary": "#00ccff",
 }
 
 SOURCES = ["pacman", "yay", "flatpak", "archaon", "github"]
@@ -94,15 +100,11 @@ TIPS = [
     "Use 'aon remove' to browse and uninstall packages.",
     "Use 'aon search <package>' to search across all sources.",
     "Use 'aon settings' to configure your defaults.",
-    "Archaon packages (.aon) are hosted at archaon.is-a.dev",
     "Use spacebar to select packages in upgrade mode.",
-    "aon wraps pacman, yay, flatpak and more in one tool.",
     "Press Q anywhere to quit aon.",
     "Arrow keys navigate, Enter selects, Space toggles.",
-    "The crow sees all packages.",
+    "The crow sees all packages. 🐦‍⬛",
     "Chaos is not a bug. Chaos is a feature.",
-    "Use 'aon search' to find packages across all sources at once.",
-    "GitHub source searches for repos with Linux install files.",
 ]
 
 COMMANDS_HELP = {
@@ -114,8 +116,71 @@ COMMANDS_HELP = {
     "aon upgrade": "Open TUI to select which packages to upgrade with spacebar.",
     "aon search <package>": "Search for a package across all sources simultaneously.",
     "aon settings": "Open the settings TUI to configure defaults.",
+    "aon uninstall": "Show uninstall instructions.",
+    "aon uninstall --sure --im-not-stupid": "Completely uninstall aon and all its files.",
     "aon --help": "Open this interactive help browser.",
 }
+
+# ─────────────────────────────────────────
+# ANIMATED LOGO
+# ─────────────────────────────────────────
+
+GREEN = '\033[38;2;0;255;136m'
+BLUE = '\033[38;2;0;204;255m'
+DIM = '\033[38;2;51;51;51m'
+RESET = '\033[0m'
+BOLD = '\033[1m'
+
+GLITCH = ['░', '▒', '▓', '█', '▄', '▀', '■', '●']
+
+def get_logo():
+    text = pyfiglet.figlet_format('AON', font='colossal')
+    lines = text.split('\n')
+    max_len = max(len(l) for l in lines)
+    result = []
+    for i, line in enumerate(lines):
+        padded = line.ljust(max_len + 2)
+        new_line = ''
+        for j, ch in enumerate(padded):
+            if ch != ' ':
+                new_line += ch
+            else:
+                if i > 0 and j > 0 and j-1 < len(lines[i-1]) and lines[i-1][j-1] != ' ':
+                    new_line += '░'
+                else:
+                    new_line += ' '
+        result.append(new_line)
+    return result
+
+def animate_logo():
+    logo = get_logo()
+    total = sum(len(l) for l in logo)
+    frames = 20
+    for frame in range(frames + 1):
+        os.system('clear')
+        revealed = int((frame / frames) * total)
+        output = ''
+        pos = 0
+        for line in logo:
+            for ch in line:
+                if pos < revealed:
+                    if ch == '░':
+                        output += BLUE + ch + RESET
+                    else:
+                        output += GREEN + ch + RESET
+                elif ch != ' ':
+                    output += DIM + random.choice(GLITCH) + RESET
+                else:
+                    output += ' '
+                pos += 1
+            output += '\n'
+        print(output)
+        time.sleep(0.12)
+
+    # Print subtitle after logo
+    print(f"  {GREEN}{BOLD}A R C H A O N  O S{RESET}")
+    print(f"  {BLUE}aon v{VERSION} — {CODENAME} 🐦‍⬛{RESET}")
+    print()
 
 # ─────────────────────────────────────────
 # CONFIG FUNCTIONS
@@ -152,8 +217,7 @@ def install_package(package: str, source: str):
         "archaon": f"echo 'Archaon repo coming soon'",
         "github": f"echo 'GitHub install coming soon'",
     }
-    cmd = cmds.get(source, f"sudo pacman -S {package}")
-    run(cmd)
+    run(cmds.get(source, f"sudo pacman -S {package}"))
 
 def remove_package(package: str):
     run(f"sudo pacman -Rns {package}")
@@ -172,14 +236,12 @@ def search_github(package: str) -> list:
         import requests
         url = f"https://api.github.com/search/repositories?q={package}+linux+install&sort=stars&per_page=10"
         r = requests.get(url, timeout=5)
-        data = r.json()
         results = []
-        for repo in data.get("items", []):
+        for repo in r.json().get("items", []):
             results.append({
                 "name": repo["full_name"],
                 "description": repo.get("description", "No description"),
                 "stars": repo["stargazers_count"],
-                "url": repo["html_url"],
             })
         return results
     except Exception:
@@ -197,6 +259,26 @@ def search_all(package: str) -> dict:
     return results
 
 # ─────────────────────────────────────────
+# UNINSTALL
+# ─────────────────────────────────────────
+
+def uninstall_aon():
+    print(f"\n{GREEN}🐦‍⬛ aon uninstaller{RESET}\n")
+    print(f"{BLUE}Removing aon binary...{RESET}")
+    run("sudo rm -f /usr/local/bin/aon")
+    print(f"{BLUE}Removing config...{RESET}")
+    run("rm -rf ~/.config/aon")
+    print(f"{BLUE}Removing pip packages...{RESET}")
+    run("pip uninstall -y textual rich requests pyfiglet --break-system-packages 2>/dev/null || pip uninstall -y textual rich requests pyfiglet 2>/dev/null")
+    print(f"\n{GREEN}✓ aon has been completely removed. Goodbye! 🐦‍⬛{RESET}\n")
+
+def uninstall_instructions():
+    print(f"\n{GREEN}🐦‍⬛ aon uninstall{RESET}\n")
+    print(f"  To uninstall aon run:\n")
+    print(f"  {BLUE}aon uninstall --sure --im-not-stupid{RESET}\n")
+    print(f"  {DIM}This will remove the binary, config, and all pip packages.{RESET}\n")
+
+# ─────────────────────────────────────────
 # CSS
 # ─────────────────────────────────────────
 
@@ -205,47 +287,39 @@ Screen {
     background: #000000;
     color: #00ff88;
 }
-
 Header {
     background: #000000;
     color: #00ff88;
 }
-
 Footer {
     background: #000000;
     color: #00ccff;
 }
-
 .logo {
     color: #00ff88;
     text-align: center;
     padding: 1 0;
 }
-
 .title {
     color: #00ff88;
     text-align: center;
     text-style: bold;
     padding: 0 0 1 0;
 }
-
 .subtitle {
     color: #00ccff;
     text-align: center;
 }
-
 .tip {
     color: #333333;
     text-align: center;
     padding: 1 0;
 }
-
 .version {
     color: #00ccff;
     text-align: center;
     text-style: italic;
 }
-
 Button {
     background: #0a0a0a;
     color: #00ff88;
@@ -253,17 +327,14 @@ Button {
     margin: 0 1;
     min-width: 20;
 }
-
 Button:hover {
     background: #00ff88;
     color: #000000;
 }
-
 Button:focus {
     background: #00ff88;
     color: #000000;
 }
-
 .panel {
     background: #0a0a0a;
     border: solid #00ff88;
@@ -271,77 +342,56 @@ Button:focus {
     margin: 1;
     height: auto;
 }
-
 .panel-title {
     color: #00ccff;
     text-style: bold;
     padding: 0 0 1 0;
 }
-
 .error { color: #ff0055; }
 .warning { color: #ffaa00; }
 .success { color: #00ff88; }
 .dim { color: #333333; }
-
 ListView {
     background: #000000;
     border: solid #00ff88;
     height: 20;
 }
-
 ListItem {
     background: #000000;
     color: #00ff88;
     padding: 0 1;
 }
-
 ListItem:hover {
     background: #00ff88;
     color: #000000;
 }
-
 ListItem.--highlight {
     background: #00ff88;
     color: #000000;
 }
-
-Checkbox {
-    color: #00ff88;
-    background: #000000;
-}
-
-Select {
-    background: #0a0a0a;
-    color: #00ff88;
-    border: solid #00ff88;
-}
-
 Input {
     background: #0a0a0a;
     color: #00ff88;
     border: solid #00ff88;
 }
-
 Input:focus {
     border: solid #00ccff;
 }
 """
 
-LOGO = (
-    "        /\\\n"
-    "       /  \\\n"
-    "      / /\\ \\\n"
-    "     / /  \\ \\\n"
-    "    / / /\\ \\ \\\n"
-    "   /_/ /__\\ \\_\\\n"
-    "      /\\  /\\\n"
-    "     /  \\/  \\\n"
-    "     \\  /\\  /\n"
-    "      \\/  \\/"
-)
+LOGO_STATIC = """
+       d8888 .d88888b. 888b    888
+      d88888d88P"░"Y88b8888b   888░
+     d88P888888░░░ ░88888888b  888░
+    d88P░888888░    888888Y88b 888░
+   d88P░░888888░    888888░Y88b888░
+  d88P░░ 888888░    888888░ Y88888░
+ d8888888888Y88b. .d88P888░  Y8888░
+d88P░░░░░888░"Y88888P"░888░   Y888░
+"""
 
 # ─────────────────────────────────────────
-# GREETER SCREEN
+# SCREENS
 # ─────────────────────────────────────────
 
 class GreeterScreen(Screen):
@@ -355,9 +405,9 @@ class GreeterScreen(Screen):
         config = load_config()
         yield Header(show_clock=True)
         yield Container(
-            Static(LOGO, classes="logo"),
+            Static(LOGO_STATIC, classes="logo"),
             Static("A R C H A O N  O S", classes="title"),
-            Static("aon — Package Manager v0.1.0 Chaotic Crow 🐦‍⬛", classes="version"),
+            Static(f"aon v{VERSION} — {CODENAME} 🐦‍⬛", classes="version"),
             Static("─" * 40, classes="subtitle"),
             Static(f"💡 {tip}", classes="tip"),
             Static("─" * 40, classes="subtitle"),
@@ -369,17 +419,13 @@ class GreeterScreen(Screen):
     def action_dismiss(self):
         self.app.pop_screen()
 
-# ─────────────────────────────────────────
-# FIRST LAUNCH SCREEN
-# ─────────────────────────────────────────
-
 class FirstLaunchScreen(Screen):
     BINDINGS = [Binding("q", "app.quit", "Quit")]
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Container(
-            Static(LOGO, classes="logo"),
+            Static(LOGO_STATIC, classes="logo"),
             Static("Welcome to aon! 🐦‍⬛", classes="title"),
             Static("Let's get you set up.", classes="subtitle"),
             Static("", classes="tip"),
@@ -407,10 +453,6 @@ class FirstLaunchScreen(Screen):
         config["first_launch"] = False
         save_config(config)
         self.app.pop_screen()
-
-# ─────────────────────────────────────────
-# HELP SCREEN
-# ─────────────────────────────────────────
 
 class HelpScreen(Screen):
     BINDINGS = [
@@ -452,10 +494,6 @@ class HelpScreen(Screen):
 
     def action_dismiss(self):
         self.app.pop_screen()
-
-# ─────────────────────────────────────────
-# SOURCE PICKER SCREEN
-# ─────────────────────────────────────────
 
 class SourcePickerScreen(Screen):
     BINDINGS = [
@@ -499,10 +537,6 @@ class SourcePickerScreen(Screen):
     def action_dismiss(self):
         self.app.pop_screen()
 
-# ─────────────────────────────────────────
-# REMOVE SCREEN
-# ─────────────────────────────────────────
-
 class RemoveScreen(Screen):
     BINDINGS = [
         Binding("q", "app.quit", "Quit"),
@@ -538,10 +572,6 @@ class RemoveScreen(Screen):
 
     def action_dismiss(self):
         self.app.pop_screen()
-
-# ─────────────────────────────────────────
-# UPGRADE SCREEN
-# ─────────────────────────────────────────
 
 class UpgradeScreen(Screen):
     BINDINGS = [
@@ -598,10 +628,6 @@ class UpgradeScreen(Screen):
     def action_dismiss(self):
         self.app.pop_screen()
 
-# ─────────────────────────────────────────
-# SEARCH SCREEN
-# ─────────────────────────────────────────
-
 class SearchScreen(Screen):
     BINDINGS = [
         Binding("q", "app.quit", "Quit"),
@@ -643,16 +669,11 @@ class SearchScreen(Screen):
                 for p in packages[:5]:
                     output.append(f"  [#00ff88]{p}[/#00ff88]")
             output.append("")
-
         self.query_one("#results_area", Static).update("\n".join(output))
         self.query_one("#search_status", Static).update("🐦‍⬛ Done!")
 
     def action_dismiss(self):
         self.app.pop_screen()
-
-# ─────────────────────────────────────────
-# SETTINGS SCREEN
-# ─────────────────────────────────────────
 
 class SettingsScreen(Screen):
     BINDINGS = [
@@ -677,14 +698,8 @@ class SettingsScreen(Screen):
             ),
             Container(
                 Static("Options", classes="panel-title"),
-                Button(
-                    f"Auto Update: {'ON' if config['auto_update'] else 'OFF'}",
-                    id="toggle_autoupdate"
-                ),
-                Button(
-                    f"Confirm Install: {'ON' if config['confirm_install'] else 'OFF'}",
-                    id="toggle_confirm"
-                ),
+                Button(f"Auto Update: {'ON' if config['auto_update'] else 'OFF'}", id="toggle_autoupdate"),
+                Button(f"Confirm Install: {'ON' if config['confirm_install'] else 'OFF'}", id="toggle_confirm"),
                 classes="panel",
             ),
             Static("ESC — Back  |  Q — Quit", classes="dim"),
@@ -694,26 +709,18 @@ class SettingsScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         config = load_config()
         bid = str(event.button.id)
-
-        if bid == "set_pacman":
-            config["default_source"] = "pacman"
-        elif bid == "set_yay":
-            config["default_source"] = "yay"
-        elif bid == "set_flatpak":
-            config["default_source"] = "flatpak"
-        elif bid == "set_archaon":
-            config["default_source"] = "archaon"
+        if bid == "set_pacman": config["default_source"] = "pacman"
+        elif bid == "set_yay": config["default_source"] = "yay"
+        elif bid == "set_flatpak": config["default_source"] = "flatpak"
+        elif bid == "set_archaon": config["default_source"] = "archaon"
         elif bid == "toggle_autoupdate":
             config["auto_update"] = not config["auto_update"]
             event.button.label = f"Auto Update: {'ON' if config['auto_update'] else 'OFF'}"
         elif bid == "toggle_confirm":
             config["confirm_install"] = not config["confirm_install"]
             event.button.label = f"Confirm Install: {'ON' if config['confirm_install'] else 'OFF'}"
-
         save_config(config)
-        self.query_one("#current_source", Static).update(
-            f"Current: {config['default_source']}"
-        )
+        self.query_one("#current_source", Static).update(f"Current: {config['default_source']}")
 
     def action_dismiss(self):
         self.app.pop_screen()
@@ -746,11 +753,23 @@ def main():
     args = sys.argv[1:]
 
     if not args:
-        AonApp(GreeterScreen()).run()
+        animate_logo()
+        config = load_config()
+        screen = FirstLaunchScreen() if config.get("first_launch", True) else GreeterScreen()
+        AonApp(screen).run()
         return
 
     if "--help" in args or "-h" in args:
+        animate_logo()
         AonApp(HelpScreen()).run()
+        return
+
+    if args[0] == "uninstall":
+        if "--sure" in args and "--im-not-stupid" in args:
+            animate_logo()
+            uninstall_aon()
+        else:
+            uninstall_instructions()
         return
 
     if args[0] == "settings":
@@ -769,11 +788,11 @@ def main():
         return
 
     if args[0] == "update":
-        print("\033[92m🐦‍⬛ aon\033[0m — Updating sources...")
+        print(f"\n{GREEN}🐦‍⬛ aon{RESET} — Updating sources...")
         run("sudo pacman -Sy")
         run("yay -Sy 2>/dev/null")
         run("flatpak update 2>/dev/null")
-        print("\033[92m✓\033[0m Done!")
+        print(f"{GREEN}✓{RESET} Done!")
         return
 
     if args[0] == "search" and len(args) > 1:
@@ -781,18 +800,16 @@ def main():
         return
 
     if args[0] == "-U" and len(args) > 2 and args[1] == "install":
-        package = args[2]
-        AonApp(SourcePickerScreen(package)).run()
+        animate_logo()
+        AonApp(SourcePickerScreen(args[2])).run()
         return
 
     if args[0] == "install" and len(args) > 1:
-        package = args[1]
         config = load_config()
-        source = config.get("default_source", "pacman")
-        install_package(package, source)
+        install_package(args[1], config.get("default_source", "pacman"))
         return
 
-    print(f"\033[91m✗\033[0m Unknown command: {' '.join(args)}")
+    print(f"{RED}✗{RESET} Unknown command: {' '.join(args)}")
     print("Run 'aon --help' for usage.")
 
 if __name__ == "__main__":
